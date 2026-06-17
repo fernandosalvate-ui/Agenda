@@ -114,6 +114,8 @@
 
   #btn-reset { display:block; margin:4px auto 0; background:none; border:1.5px solid var(--border); color:var(--muted); font-family:inherit; font-size:.78rem; padding:7px 20px; border-radius:99px; cursor:pointer; transition:all .2s; }
   #btn-reset:hover { border-color:var(--late); color:var(--late); }
+  .backup-btn { background:none; border:1.5px solid var(--border); color:var(--muted); font-family:inherit; font-size:.74rem; padding:6px 14px; border-radius:99px; cursor:pointer; transition:all .2s; }
+  .backup-btn:hover { border-color:var(--accent); color:var(--accent); }
 
   @media(max-width:500px) {
     header { padding:18px 16px 0; }
@@ -185,6 +187,12 @@
 
   <div id="task-list"></div>
   <button id="btn-reset">↺ Reiniciar dia</button>
+
+  <div style="display:flex; gap:8px; justify-content:center; margin-top:6px;">
+    <button id="btn-backup" class="backup-btn">💾 Salvar backup</button>
+    <button id="btn-restore" class="backup-btn">📂 Restaurar backup</button>
+    <input type="file" id="file-restore" accept="application/json" style="display:none">
+  </div>
 </main>
 
 <script>
@@ -412,6 +420,47 @@ document.getElementById('btn-reset').addEventListener('click', () => {
     save(); render();
     if(notifGranted) scheduleAll();
   }
+});
+
+// ── BACKUP / RESTORE ──
+document.getElementById('btn-backup').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dataAtual = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `meudia-backup-${dataAtual}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-restore').addEventListener('click', () => {
+  document.getElementById('file-restore').click();
+});
+
+document.getElementById('file-restore').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const restored = JSON.parse(ev.target.result);
+      if (!Array.isArray(restored)) throw new Error('Formato inválido');
+      if (confirm(`Restaurar ${restored.length} atividade(s) deste backup? Isso vai substituir a lista atual.`)) {
+        tasks = restored;
+        save();
+        render();
+        if (notifGranted) scheduleAll();
+        alert('Backup restaurado com sucesso!');
+      }
+    } catch (err) {
+      alert('Arquivo de backup inválido.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
 });
 
 // ── CHECK NOTIF PERMISSION ON LOAD ──
