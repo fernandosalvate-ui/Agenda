@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Meu Dia">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>Meu Dia — Lembretes</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink:    #1a1a2e;
+    --sky:    #e8f4f8;
+    --accent: #4a9eca;
+    --done:   #5bb98c;
+    --late:   #e06c5a;
+    --soft:   #f5f8fa;
+    --border: #d8e8f0;
+    --muted:  #8899aa;
+    --white:  #ffffff;
+    --shadow: 0 2px 16px rgba(74,158,202,0.10);
+  }
+  body { font-family:'Inter',sans-serif; background:var(--sky); color:var(--ink); min-height:100vh; }
+
+  /* HEADER */
+  header { background:var(--ink); color:var(--white); padding:28px 24px 0; display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  header h1 { font-family:'DM Serif Display',serif; font-size:2rem; font-weight:400; line-height:1; }
+  header h1 em { color:var(--accent); font-style:italic; }
+  #live-clock { font-size:1.5rem; font-weight:300; letter-spacing:2px; color:#a8c8e0; text-align:right; }
+  #date-label { font-size:0.72rem; color:#6699bb; text-transform:uppercase; letter-spacing:.05em; text-align:right; margin-top:2px; }
+
+  /* NOTIF BANNER */
+  #notif-banner {
+    background: #2a3a52;
+    color: #a8c8e0;
+    font-size: 0.78rem;
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  #notif-banner button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 4px 14px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* PROGRESS */
+  #progress-wrap { background:var(--ink); padding:14px 24px 18px; display:flex; align-items:center; gap:14px; }
+  #progress-bar { flex:1; height:6px; background:#2a3a52; border-radius:99px; overflow:hidden; }
+  #progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--done)); border-radius:99px; transition:width .5s; width:0%; }
+  #progress-text { font-size:0.72rem; color:#6699bb; white-space:nowrap; min-width:60px; text-align:right; }
+
+  /* MAIN */
+  main { max-width:720px; margin:0 auto; padding:24px 16px 80px; display:flex; flex-direction:column; gap:18px; }
+
+  /* ADD FORM */
+  #add-form { background:var(--white); border-radius:16px; padding:18px; box-shadow:var(--shadow); display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .field { display:flex; flex-direction:column; gap:5px; }
+  .field label { font-size:0.7rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+  .field input, .field select { border:1.5px solid var(--border); border-radius:10px; padding:9px 12px; font-family:inherit; font-size:0.88rem; color:var(--ink); background:var(--soft); outline:none; transition:border-color .2s; }
+  .field input:focus, .field select:focus { border-color:var(--accent); background:var(--white); }
+  #field-name { flex:1; min-width:160px; }
+  #btn-add { background:var(--ink); color:var(--white); border:none; border-radius:10px; padding:9px 20px; font-family:inherit; font-size:0.88rem; font-weight:600; cursor:pointer; height:40px; align-self:flex-end; transition:background .2s; white-space:nowrap; }
+  #btn-add:hover { background:var(--accent); }
+
+  /* FILTERS */
+  #filters { display:flex; gap:7px; flex-wrap:wrap; }
+  .filter-btn { padding:6px 15px; border-radius:99px; border:1.5px solid var(--border); background:var(--white); font-family:inherit; font-size:0.78rem; font-weight:500; color:var(--muted); cursor:pointer; transition:all .2s; }
+  .filter-btn.active, .filter-btn:hover { background:var(--ink); border-color:var(--ink); color:var(--white); }
+
+  /* TASK LIST */
+  #task-list { display:flex; flex-direction:column; gap:10px; }
+  .empty-state { text-align:center; padding:48px 20px; color:var(--muted); font-size:.9rem; }
+  .empty-state .icon { font-size:2.5rem; display:block; margin-bottom:10px; opacity:.4; }
+
+  /* TASK CARD */
+  .task-card { background:var(--white); border-radius:14px; padding:14px 16px; display:flex; align-items:center; gap:13px; box-shadow:var(--shadow); border-left:4px solid var(--accent); animation:slideIn .25s ease; transition:opacity .3s; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+  .task-card.done { opacity:.5; }
+  .task-card.done .task-name { text-decoration:line-through; color:var(--muted); }
+  .task-card[data-cat="saúde"]    { border-color:var(--done); }
+  .task-card[data-cat="trabalho"] { border-color:#e0a85a; }
+  .task-card[data-cat="pessoal"]  { border-color:#9b7fe8; }
+  .task-card[data-cat="casa"]     { border-color:var(--late); }
+
+  .check-btn { width:28px; height:28px; border-radius:50%; border:2px solid var(--border); background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; transition:all .2s; }
+  .check-btn:hover { border-color:var(--done); }
+  .task-card.done .check-btn { background:var(--done); border-color:var(--done); color:var(--white); }
+
+  .task-info { flex:1; min-width:0; }
+  .task-name { font-size:.93rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .task-meta { display:flex; align-items:center; gap:8px; margin-top:3px; }
+  .task-time { font-size:.74rem; color:var(--muted); }
+  .task-time.late { color:var(--late); font-weight:600; }
+  .cat-badge { font-size:.64rem; font-weight:600; padding:2px 8px; border-radius:99px; background:var(--sky); color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+
+  .del-btn { background:none; border:none; color:#ccc; cursor:pointer; font-size:1.1rem; padding:4px; border-radius:6px; transition:all .2s; flex-shrink:0; }
+  .del-btn:hover { color:var(--late); background:#fef2f0; }
+
+  #btn-reset { display:block; margin:4px auto 0; background:none; border:1.5px solid var(--border); color:var(--muted); font-family:inherit; font-size:.78rem; padding:7px 20px; border-radius:99px; cursor:pointer; transition:all .2s; }
+  #btn-reset:hover { border-color:var(--late); color:var(--late); }
+
+  @media(max-width:500px) {
+    header { padding:18px 16px 0; }
+    header h1 { font-size:1.5rem; }
+    #progress-wrap { padding:12px 16px 16px; }
+    main { padding:18px 10px 60px; }
+    #field-name { min-width:100%; }
+    #btn-add { width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Meu <em>Dia</em></h1>
+  </div>
+  <div>
+    <div id="live-clock">--:--</div>
+    <div id="date-label"></div>
+  </div>
+</header>
+
+<div id="notif-banner">
+  <span id="notif-status">🔔 Ative as notificações para receber lembretes no horário</span>
+  <div style="display:flex; gap:8px;">
+    <button id="btn-notif">Ativar</button>
+    <button id="btn-test-notif" style="display:none; background:#5bb98c;">🔔 Testar</button>
+  </div>
+</div>
+
+<div id="progress-wrap">
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+  <div id="progress-text">0 / 0</div>
+</div>
+
+<main>
+  <div id="add-form">
+    <div class="field" id="field-name">
+      <label>Atividade</label>
+      <input id="inp-name" type="text" placeholder="Ex: Tomar vitamina" maxlength="60">
+    </div>
+    <div class="field">
+      <label>Horário</label>
+      <input id="inp-time" type="time" style="width:110px">
+    </div>
+    <div class="field">
+      <label>Categoria</label>
+      <select id="inp-cat" style="width:130px">
+        <option value="geral">Geral</option>
+        <option value="saúde">Saúde</option>
+        <option value="trabalho">Trabalho</option>
+        <option value="pessoal">Pessoal</option>
+        <option value="casa">Casa</option>
+      </select>
+    </div>
+    <button id="btn-add">+ Adicionar</button>
+  </div>
+
+  <div id="filters">
+    <button class="filter-btn active" data-filter="todas">Todas</button>
+    <button class="filter-btn" data-filter="pendentes">Pendentes</button>
+    <button class="filter-btn" data-filter="concluídas">Concluídas</button>
+    <button class="filter-btn" data-filter="saúde">Saúde</button>
+    <button class="filter-btn" data-filter="trabalho">Trabalho</button>
+    <button class="filter-btn" data-filter="pessoal">Pessoal</button>
+    <button class="filter-btn" data-filter="casa">Casa</button>
+  </div>
+
+  <div id="task-list"></div>
+  <button id="btn-reset">↺ Reiniciar dia</button>
+</main>
+
+<script>
+// ── STATE ──
+const STORE_KEY = 'meudiaV2';
+let tasks = [], filter = 'todas', sw = null, notifGranted = false;
+
+function load() {
+  try { tasks = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { tasks = []; }
+  if (!tasks.length) seedDefaults();
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(tasks)); }
+function uid()  { return Math.random().toString(36).slice(2,9); }
+
+function seedDefaults() {
+  const d = [
+    {name:'Tomar água (2L)',time:'07:00',cat:'saúde'},
+    {name:'Exercícios físicos',time:'07:30',cat:'saúde'},
+    {name:'Café da manhã',time:'08:00',cat:'pessoal'},
+    {name:'Verificar e-mails',time:'09:00',cat:'trabalho'},
+    {name:'Almoço',time:'12:00',cat:'pessoal'},
+    {name:'Pausa / descanso',time:'15:00',cat:'pessoal'},
+    {name:'Organizar agenda amanhã',time:'18:00',cat:'trabalho'},
+    {name:'Jantar',time:'19:30',cat:'pessoal'},
+    {name:'Leitura ou relaxamento',time:'21:00',cat:'pessoal'},
+    {name:'Preparar para dormir',time:'22:30',cat:'saúde'},
+  ];
+  tasks = d.map(x => ({id:uid(),...x,done:false}));
+  save();
+}
+
+// ── SERVICE WORKER ──
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('./sw.js');
+    sw = reg;
+    console.log('SW registrado');
+  } catch(e) { console.warn('SW falhou:', e); }
+}
+
+// ── NOTIFICATIONS ──
+async function requestNotif() {
+  if (!('Notification' in window)) {
+    updateBanner('❌ Seu navegador não suporta notificações', true); return;
+  }
+  const perm = await Notification.requestPermission();
+  notifGranted = perm === 'granted';
+  if (notifGranted) {
+    updateBanner('✅ Notificações ativas! Você será avisado no horário.', true);
+    scheduleAll();
+  } else {
+    updateBanner('⚠️ Permissão negada. Ative nas configurações do Chrome.', true);
+  }
+}
+
+function updateBanner(msg, hideBtn) {
+  document.getElementById('notif-status').textContent = msg;
+  if (hideBtn) document.getElementById('btn-notif').style.display = 'none';
+  if (notifGranted) document.getElementById('btn-test-notif').style.display = 'inline-block';
+}
+
+// Conjunto de IDs já notificados hoje, para não repetir
+let notifiedToday = new Set(JSON.parse(localStorage.getItem('notifiedToday')||'[]'));
+let lastNotifDate = localStorage.getItem('lastNotifDate') || '';
+
+function todayStr() {
+  const n = new Date();
+  return `${n.getFullYear()}-${n.getMonth()}-${n.getDate()}`;
+}
+
+function resetNotifiedIfNewDay() {
+  const t = todayStr();
+  if (t !== lastNotifDate) {
+    notifiedToday = new Set();
+    lastNotifDate = t;
+    localStorage.setItem('lastNotifDate', t);
+    localStorage.setItem('notifiedToday', '[]');
+  }
+}
+
+function checkAndNotify() {
+  if (!notifGranted) return;
+  resetNotifiedIfNewDay();
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+
+  tasks.forEach(t => {
+    if (t.done || !t.time || notifiedToday.has(t.id)) return;
+    const [h, m] = t.time.split(':').map(Number);
+    const taskMin = h*60 + m;
+    // dispara se o horário já chegou (com janela de 1 min para não perder o tick)
+    if (nowMin >= taskMin && nowMin <= taskMin + 1) {
+      fireNotification(t);
+      notifiedToday.add(t.id);
+      localStorage.setItem('notifiedToday', JSON.stringify([...notifiedToday]));
+    }
+  });
+}
+
+function fireNotification(t) {
+  const title = '⏰ ' + t.name;
+  const opts = {
+    body: 'Horário: ' + t.time,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: t.id,
+    vibrate: [200,100,200],
+    renotify: true
+  };
+  if (sw && sw.showNotification) {
+    sw.showNotification(title, opts);
+  } else if (Notification.permission === 'granted') {
+    new Notification(title, opts);
+  }
+}
+
+// Mantemos essas funções para compatibilidade, mas agora não fazem mais nada crítico
+function scheduleAll() { checkAndNotify(); }
+function scheduleTask(t) { /* checagem ativa cobre isso automaticamente */ }
+
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('live-clock').textContent =
+    now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('date-label').textContent =
+    now.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  render();
+}
+
+// ── RENDER ──
+function render() {
+  const list = document.getElementById('task-list');
+  const sorted = [...tasks].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  const visible = sorted.filter(t => {
+    if (filter==='pendentes')  return !t.done;
+    if (filter==='concluídas') return  t.done;
+    if (['saúde','trabalho','pessoal','casa'].includes(filter)) return t.cat===filter;
+    return true;
+  });
+
+  const total = tasks.length, done = tasks.filter(t=>t.done).length;
+  document.getElementById('progress-fill').style.width = total ? (done/total*100)+'%' : '0%';
+  document.getElementById('progress-text').textContent = `${done} / ${total}`;
+
+  if (!visible.length) {
+    list.innerHTML = `<div class="empty-state"><span class="icon">✅</span>Nenhuma atividade aqui.</div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  visible.forEach(t => {
+    const isLate = isTaskLate(t);
+    const card = document.createElement('div');
+    card.className = 'task-card'+(t.done?' done':'');
+    card.dataset.cat = t.cat;
+    card.innerHTML = `
+      <button class="check-btn" data-id="${t.id}">${t.done?'✓':''}</button>
+      <div class="task-info">
+        <div class="task-name">${esc(t.name)}</div>
+        <div class="task-meta">
+          ${t.time?`<span class="task-time${isLate&&!t.done?' late':''}">${isLate&&!t.done?'⚠ ':''}${t.time}</span>`:''}
+          <span class="cat-badge">${t.cat}</span>
+        </div>
+      </div>
+      <button class="del-btn" data-id="${t.id}">✕</button>`;
+    list.appendChild(card);
+  });
+}
+
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function isTaskLate(t){
+  if(!t.time||t.done) return false;
+  const now=new Date(), [h,m]=t.time.split(':').map(Number);
+  return now.getHours()*60+now.getMinutes() > h*60+m+5;
+}
+
+// ── ACTIONS ──
+function addTask() {
+  const name = document.getElementById('inp-name').value.trim();
+  if (!name){ document.getElementById('inp-name').focus(); return; }
+  const time = document.getElementById('inp-time').value;
+  const cat  = document.getElementById('inp-cat').value;
+  const t    = {id:uid(), name, time, cat, done:false};
+  tasks.push(t);
+  save(); render();
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-time').value = '';
+}
+
+// ── EVENTS ──
+document.getElementById('btn-add').addEventListener('click', addTask);
+document.getElementById('inp-name').addEventListener('keydown', e => { if(e.key==='Enter') addTask(); });
+document.getElementById('btn-notif').addEventListener('click', requestNotif);
+document.getElementById('btn-test-notif').addEventListener('click', () => {
+  fireNotification({ id: 'teste-'+Date.now(), name: 'Notificação de teste', time: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) });
+});
+
+document.getElementById('task-list').addEventListener('click', e => {
+  const check = e.target.closest('.check-btn');
+  const del   = e.target.closest('.del-btn');
+  if (check) {
+    const t = tasks.find(x=>x.id===check.dataset.id);
+    if(t){ t.done=!t.done; save(); render(); }
+  }
+  if (del) {
+    tasks = tasks.filter(x=>x.id!==del.dataset.id);
+    save(); render();
+  }
+});
+
+document.getElementById('filters').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if(!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  filter = btn.dataset.filter;
+  render();
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if(confirm('Reiniciar o dia? Todas as atividades voltarão para pendente.')){
+    tasks.forEach(t=>t.done=false);
+    save(); render();
+    if(notifGranted) scheduleAll();
+  }
+});
+
+// ── CHECK NOTIF PERMISSION ON LOAD ──
+function checkExistingPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    notifGranted = true;
+    updateBanner('✅ Notificações ativas!', true);
+  }
+}
+
+// ── INIT ──
+load();
+render();
+updateClock();
+setInterval(updateClock, 15000);
+setInterval(checkAndNotify, 20000); // checa a cada 20s se algum horário bateu
+registerSW().then(() => {
+  checkExistingPermission();
+  if(notifGranted) checkAndNotify();
+});
+</script>
+</body>
+</html>
